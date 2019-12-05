@@ -1,6 +1,8 @@
 function RI_portfolio_plots(combo,yN,ncores)
 RI_portfolio_init
-parpool('local', ncores);
+if (ncores>1) 
+    parpool('local', ncores);
+end
 stategrid=stategrid; % this makes the variable accessible to the parfor workers
 u=u;
 lambda=lambda;

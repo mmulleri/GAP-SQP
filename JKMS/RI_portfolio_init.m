@@ -70,7 +70,7 @@ u_mat_sims   = u(actiongrid_sims,stategrid);
 b_logscales_sims = -max(u_mat_sims,[],2)/lambda;
 b_mat_sims = exp(u_mat_sims/lambda + b_logscales_sims);
 b_sims       = b_mat_sims*p_marg_sims;
-[~,p_joint_sims,u_sims,I_sims,uinfo_sims] = GAP_components(p_marg_sims,b_mat_sims,u_mat_sims,lambda,prior);
+[~,p_joint_sims,u_sims,I_sims,uinfo_sims] = GAP_components(p_marg_sims,u_mat_sims,lambda,prior);
 
 %% import existing solution
 importfile=sprintf('portfolio_input/portfolio_%s_Y%i.mat',combo,yN);
