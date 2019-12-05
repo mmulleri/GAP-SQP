@@ -1,4 +1,4 @@
-function [p_cond,p_joint,uopt,Iopt,u_info] = GAP_components(p_marg,u_mat,llambda,ppi)
+function [p_cond,p_joint,wopt,Iopt,u_info] = GAP_components(p_marg,u_mat,llambda,ppi)
   % GAP_COMPONENTS(p_marg,u_mat,llambda,ppi) describes the optimal choice
   % under marginals p_marg.
   %
@@ -14,7 +14,7 @@ function [p_cond,p_joint,uopt,Iopt,u_info] = GAP_components(p_marg,u_mat,llambda
   %            action a in state i
   %  - p_joint: matrix where entry (i,a) denotes the joint probability of
   %             action a and state i
-  %  - uopt:    optimal expected consumption utility
+  %  - wopt:    optimal objective value 
   %  - Iopt:    optimal amount of mutual information (in nats)
   %  - u_info:  structure with three fields
   %     - full_info: consumption payoff under free full Information
@@ -28,7 +28,7 @@ function [p_cond,p_joint,uopt,Iopt,u_info] = GAP_components(p_marg,u_mat,llambda
   % written by Roc Armenter, Michele Muller-Itten and Zachary Stangebye.
   %
   
-[I J]=size(b_mat);
+[I J]=size(u_mat);
 b_logscales = -max(u_mat,[],2)/llambda;
 b_mat = exp(u_mat/llambda + b_logscales);
 
@@ -45,11 +45,11 @@ p_joint = D*p_cond; % Joint distribution
 q = @(pjoint) pjoint./(sum(pjoint,1).*sum(pjoint,2));
 I = @(p,q) sum(p(p>0).*log(q(p>0)));
 Iopt = I(p_joint,q(p_joint));
-uopt = sum(sum(p_joint.*u_mat))-llambda*Iopt;
+wopt = sum(sum(p_joint.*u_mat))-llambda*Iopt;
 if nargout>4
     u_info = struct;
     u_info.full_info = ppi'*max(u_mat,[],2);
     u_info.no_info = max(ppi'*u_mat);
-    u_info.normalized = (uopt-u_info.no_info)/(u_info.full_info-u_info.no_info);
+    u_info.normalized = (wopt-u_info.no_info)/(u_info.full_info-u_info.no_info);
 end
 end
