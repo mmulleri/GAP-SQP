@@ -1,5 +1,21 @@
 maxNumCompThreads(ncores);
 
+addpath('..');
+
+%% create required subfolders if they don't yet exist
+if ~exist('portfolio_output', 'dir')
+       mkdir('portfolio_output')
+end
+if ~exist('portfolio_input', 'dir')
+       mkdir('portfolio_input')
+end
+if ~exist('portfolio_solutions', 'dir')
+       mkdir('portfolio_solutions')
+end
+if ~exist('portfolio_figs', 'dir')
+       mkdir('portfolio_figs')
+end
+
 %% setup
 
 switch combo
