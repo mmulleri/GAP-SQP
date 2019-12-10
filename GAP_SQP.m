@@ -52,9 +52,6 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   addParameter(inputs,'MaxIterations',1e4,validposn);
   addParameter(inputs,'initial_p',[],@(x) isempty(x) || (isPMF(x) && size(x,1)==J));
 
-  % Stopping criterion
-  addParameter(inputs,'stop_IE',true,@(x) islogical(x));
-
   % PARSE
   parse(inputs,u_mat,ppi,info_cost,varargin{:});
 
@@ -81,9 +78,6 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
 
   % maxit limits the number of iterations FOR OUR ALGORITHM
   maxit = inputs.Results.MaxIterations;
-
-  % whether to use IE for stopping
-  stop_IE = inputs.Results.stop_IE;
 
   % Print options
   print_i = any(strcmp({'iter','detailed'},inputs.Results.display));
