@@ -132,33 +132,44 @@ fprintf('Objective function difference (GAP-SQP - Blahut Arimoto): %g percent of
 offset = .003;width = 1;
 
 % Compare with SQL
-figure('PaperPosition',[0,0,8,5],'PaperSize',[8,5])
+dblue='#143D73';
+lblue='#96AFC2';
+dorange='#F29F05';
+dred='#BF214B';
+
+fig=figure(1);
+fig.Units = 'inches';
+fig.Position = [0 0 7 2];
 hold on
 
 
-bar(actiongrid,p_marg*100,width)
-bar(Y+offset,p_ampl*100,width)
+
+bar(actiongrid,p_marg*100,width,'FaceColor',dblue,'EdgeAlpha', 0)
+bar(Y+offset,p_ampl*100,width,'FaceColor',dred,'EdgeAlpha', 0)
+hold off
 legend('GAP-SQP','AMPL',...
     'Location','NorthWest')
-ylabel('Probability (percent)')
-xlabel('Price')
+ylabel('probability (percent)')
+xlabel('price')
 
-print('-f1','-dpdf','Matejka16_figs/replicate_SQP.pdf')
-close
+set(gca, 'YGrid', 'on', 'XGrid', 'off')
+set(gca,'FontSize',9);
+set(gca,'FontName','CMU Serif');
+figure_file = 'Matejka16_figs/replicate_SQP.pdf';
+exportgraphics(fig,figure_file,'ContentType','vector');
 
 % Compare with Blahut-Arimoto
-figure('PaperPosition',[0,0,8,5],'PaperSize',[8,5])
+cla
 hold on
+ba   = bar(actiongrid,p_marg_BA*100,width,'FaceColor',dorange,'EdgeAlpha', 0);
+ba.DisplayName = 'Blahut-Arimotho';
+ampl = bar(Y+offset,p_ampl*100,width,'FaceColor',dred,'EdgeAlpha', 0)
+ampl.DisplayName = 'AMPL';
+hold off
+legend([ba ampl],'Location','NorthWest')
 
-
-bar(actiongrid,p_marg_BA*100,width)
-bar(Y+offset,p_ampl*100,width)
-legend('Blahut-Arimoto','AMPL',...
-    'Location','NorthWest')
-ylabel('Probability (percent)')
-xlabel('Price')
-
-print('-f1','-dpdf','Matejka16_figs/replicate_BA.pdf')
+figure_file = 'Matejka16_figs/replicate_BA.pdf';
+exportgraphics(fig,figure_file,'ContentType','vector');
 close
 
 % eof

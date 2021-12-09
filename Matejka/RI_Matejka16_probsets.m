@@ -13,8 +13,8 @@ staterange = [1/9 1/2];
 actionrange = [10/9 3/2];
 
 % Grids
-Nstates = 100;
-Nactions = 100;
+Nstates = 300;
+Nactions = 1000;
 stategrid = transpose(staterange(1):(staterange(2)-staterange(1))/(Nstates-1):staterange(2));
 actiongrid = transpose(actionrange(1):(actionrange(2)-actionrange(1))/(Nactions-1):actionrange(2));
 
@@ -49,28 +49,108 @@ IE = @(p) llambda*log(b_mat*p);
 covers = GAP_bounds(info.b_mat,ppi,p_marg,[0,.01],...
     'verbose',false);
 
+save('Matejka16_output/data_bounds.mat','covers','actiongrid','p_marg');
+
 %% Figure dominated actions
-set(groot,'DefaultAxesFontSize',14)
+dblue='#143D73';
+lblue='#99B1C3';
+dorange='#F29F05';
+dred='#BF214B';
 
-
+fig=figure(1); 
+clf
+fig.Units = 'inches';
+fig.Position = [0 0 7 2.5];
+hold on 
 width = 1;
-RGB_color = [0.3010 0.7450 0.9330];
 
-figure('PaperPosition',[0,0,9,3],'PaperSize',[9,3])
+bar(actiongrid, (1-covers(:,1)), width,...
+    'FaceColor',lblue,...
+    'EdgeAlpha', 0)
+bar(actiongrid, (1-covers(:,2)), width,...
+    'FaceColor',dblue,...
+    'EdgeAlpha', 0)
+bar(actiongrid,p_marg,width,'FaceColor',dorange,'EdgeAlpha', 0)
+ylim([0 min(1,1.2*max(p_marg))])
+
+ylabel('probability')
+xlabel('price')
+set(gca, 'YGrid', 'on', 'XGrid', 'off')
+
+set(gca,'FontSize',9);
+set(gca,'FontName','CMU Serif');
+main=gca;
+
+% add insets:
+% get positions for insets
+xl = xlim(); 
+yl = ylim(); 
+axpos = get(gca,'position');
+% convert data coordinate xyc from data space to figure space
+% (https://www.mathworks.com/matlabcentral/answers/472527-how-to-align-axes-to-a-point-on-another-figure)
+normFigCoord = @(xyc) axpos(1:2) + axpos(3:4).*((xyc- [xl(1),yl(1)])./[xl(2)-xl(1), yl(2)-yl(1)]);
+
+% inset A
+inset_yl = [0.1 yl(2)];
+inset_lr = 1.185; inset_xstretch=20;los=0.002;
+inset_xl_orig = [1.1902 1.1935];
+inset_xl = [inset_lr-inset_xstretch*(inset_xl_orig(2)-inset_xl_orig(1)) inset_lr];
+inset_ll = normFigCoord([inset_xl(1) inset_yl(1)]);
+inset_ur = normFigCoord([inset_xl(2) inset_yl(2)]);
+framecoords=[normFigCoord([inset_xl_orig(1) inset_yl(1)]) normFigCoord([inset_xl_orig(2) inset_yl(2)])];
+frame = axes('Units','Normalize','Position',[framecoords(1:2) framecoords(3:4)-framecoords(1:2)], 'color', 'none');
+set(frame,'XTick',[],'YTick',[]); box on;
+inset = axes('Units','Normalize','Position',[inset_ll, inset_ur-inset_ll], 'color', 'none');
 hold on
+bar(actiongrid, (1-covers(:,1)), width,'FaceColor',lblue,'EdgeAlpha', 0)
+bar(actiongrid, (1-covers(:,2)), width,'FaceColor',dblue,'EdgeAlpha', 0)
+bar(actiongrid,p_marg,width,'FaceColor',dorange,'EdgeAlpha', 0)
+hold off
+ylabel(''); xlabel('');
+box on
+xlim(inset_xl_orig); xticks([1.191 1.193]);
+ylim(inset_yl);
+set(gca,'ytick',[])
+set(gca,'FontSize',9);
+set(gca,'FontName','CMU Serif');
+set(gca, 'Layer', 'top');
+% add guide lines
+plot(main,[inset_xl_orig(1)-los inset_lr+los],[inset_yl(1) inset_yl(1)],'k-');
+plot(main,[inset_xl_orig(1)-los inset_lr+los],[inset_yl(2) inset_yl(2)],'k-');
 
-bar(actiongrid, (1-covers(:,1))*.6, width,...
-    'FaceColor',RGB_color,...
-    'EdgeColor',RGB_color,...
-    'FaceAlpha', .8, 'EdgeAlpha', 0)
-bar(actiongrid,p_marg,width)
-lgd = legend('undominated','Numerical solution',...
+% inset B
+inset_lr = 1.35;
+inset_xl_orig = [1.363 1.366];
+inset_xl = [inset_lr-inset_xstretch*(inset_xl_orig(2)-inset_xl_orig(1)) inset_lr];
+inset_ll = normFigCoord([inset_xl(1) inset_yl(1)]);
+inset_ur = normFigCoord([inset_xl(2) inset_yl(2)]);
+framecoords=[normFigCoord([inset_xl_orig(1) inset_yl(1)]) normFigCoord([inset_xl_orig(2) inset_yl(2)])];
+frame = axes('Units','Normalize','Position',[framecoords(1:2) framecoords(3:4)-framecoords(1:2)], 'color', 'none');
+set(frame,'XTick',[],'YTick',[]); box on;
+inset = axes('Units','Normalize','Position',[inset_ll, inset_ur-inset_ll], 'color', 'none');
+hold on
+bar(actiongrid, (1-covers(:,1)), width,'FaceColor',lblue,'EdgeAlpha', 0)
+bar(actiongrid, (1-covers(:,2)), width,'FaceColor',dblue,'EdgeAlpha', 0)
+bar(actiongrid,p_marg,width,'FaceColor',dorange,'EdgeAlpha', 0)
+hold off
+ylabel(''); xlabel('');
+box on
+xlim(inset_xl_orig); xticks([1.364 1.366]);
+ylim(inset_yl);
+set(gca,'ytick',[])
+set(gca,'FontSize',9);
+set(gca,'FontName','CMU Serif');
+set(gca, 'Layer', 'top');
+% add guide lines
+plot(main,[inset_xl_orig(1)-los inset_lr+los],[inset_yl(1) inset_yl(1)],'k-');
+plot(main,[inset_xl_orig(1)-los inset_lr+los],[inset_yl(2) inset_yl(2)],'k-');
+
+lgd = legend(main,'99% cover','undominated','numerical solution','','','',...
     'Location','NorthEast');
-%title(lgd,'Consideration sets')
-
-ylabel('Probability')
-xlabel('Price')
-print('-f1','-dpdf',[fig_folder 'replicate_dominate.pdf'])
+set(lgd,'FontSize',8);
+set(gca, 'Layer', 'top');
+figure_file = [fig_folder sprintf('marginals_covers_%i_%i.pdf',Nstates,Nactions)];
+exportgraphics(fig,figure_file,'ContentType','vector');
 close
 
 %eof

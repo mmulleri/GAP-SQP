@@ -1,6 +1,6 @@
 % RI_Matejka16_figures.m
 %-------------------------------------
-% Generates figures for Section 4.1.
+% Generates figures fr Section 4.1.
 %-------------------------------------
 % NOTE: Requires to run RI_Matejka16_main.m first.
 
@@ -15,66 +15,81 @@ alt_text = 'Blahut-Arimoto';
 
 load('Matejka16_output/data_runtimes_infocosts.mat')
 
-set(groot,'DefaultAxesFontSize',16)
+dblue='#143D73';
+lblue='#96AFC2';
+dorange='#F29F05';
+dred='#BF214B';
 
 % Running times: SQP only
-figure('PaperPosition',[0,0,8,5],'PaperSize',[8,5])
+fig=figure(1);
+clf
+fig.Units = 'inches';
+fig.Position = [0 0 3 2.1];
 hold on
 
-plot(llambda_grid_bench*10^3, times_mat(:,1), 'b-', 'LineWidth',2)
+plot(llambda_grid_bench*10^3, times_mat(:,1), '-', 'LineWidth',2,'Color',dblue)
 
-xlabel('Information cost \lambda \times 10^3')
-ylabel('Seconds')
+xlabel('information cost \lambda \times 10^3')
+ylabel('seconds')
 %title(['Running times for ' ours_text ' algorithm'])
 
+set(gca,'FontSize',9);
+set(gca,'FontName','CMU Serif');
 figure_file = [fig_folder 'times_benchmark.pdf'];
-print('-f1','-dpdf',figure_file)
-close
+exportgraphics(fig,figure_file,'ContentType','vector');
 
 % Running times: Compare
-figure('PaperPosition',[0,0,8,5],'PaperSize',[8,5])
+cla
 hold on
 
-plot(llambda_grid_bench*10^3, times_mat(:,1), 'b-', 'LineWidth',2)
-plot(llambda_grid_bench*10^3, times_mat(:,2), 'r-', 'LineWidth',2)
+plot(llambda_grid_bench*10^3, times_mat(:,1), '-', 'LineWidth',2,'Color',dblue)
+plot(llambda_grid_bench*10^3, times_mat(:,2), '-', 'LineWidth',2,'Color',dorange)
 lgd = legend(ours_text,alt_text);
-title(lgd,'Algorithm')
-
-xlabel('Information cost \lambda \times 10^3')
-ylabel('Seconds')
-%title('Running times: Benchmark')
+%title(lgd,'Algorithm')
+lgd.Location = 'north west';
 
 figure_file = [fig_folder 'times_benchmark_compare.pdf'];
-print('-f1','-dpdf',figure_file)
-close
+exportgraphics(fig,figure_file,'ContentType','vector');
+
+%% Objective function comparison
+% Figure 10
+cla
+fig.Position = [0 0 6 3];
+hold on
+plot(llambda_grid_bench*10^3, obj_mat(:,1)-obj_mat(:,2),'-','LineWidth',1,'Color',dblue)
+
+xlabel('information cost \lambda \times 10^3')
+ylabel('difference in objective value')
+lgd.Visible = 'off';
+
+figure_file = [fig_folder 'obj_benchmark.pdf'];
+exportgraphics(fig,figure_file,'ContentType','vector');
+fig.Position = [0 0 3 2];
 
 %% Running times across grid precision points
 % Figure 4
 
 load('Matejka16_output/data_runtimes_gridpoints.mat')
 
-% Running times: SQP
-figure('PaperPosition',[0,0,8,5],'PaperSize',[8,5])
+% Running times: GAP_SQP
+cla
 hold on
 
-plot(gridpoints.^2*1e-3, times_mat(:,1), 'b-', 'LineWidth',2)
+plot(gridpoints.^2*1e-3, times_mat(:,1), '-', 'LineWidth',2,'Color',dblue)
 
-xlabel('Grid points (thousands)')
-ylabel('Seconds')
+xlabel('grid points (thousands)')
+ylabel('seconds')
 
 figure_file = [fig_folder 'scale_SQP.pdf'];
-print('-f1','-dpdf',figure_file)
-close
+exportgraphics(fig,figure_file,'ContentType','vector');
 
 % Running times: BA
-figure('PaperPosition',[0,0,8,5],'PaperSize',[8,5])
+cla
 hold on
 
-plot(gridpoints.^2*1e-3, times_mat(:,2), 'r-', 'LineWidth',2)
-
-xlabel('Grid points (thousands)')
-ylabel('Seconds')
+plot(gridpoints.^2*1e-3, times_mat(:,2), '-', 'LineWidth',2,'Color',dorange)
 
 figure_file = [fig_folder 'scale_BA.pdf'];
-print('-f1','-dpdf',figure_file)
+exportgraphics(fig,figure_file,'ContentType','vector');
 close
+

@@ -22,8 +22,11 @@ llambda = 0.00531;
 % Convergence tolerance for IE
 conv_tol_IE = 1e-11;
 
+% Number of runs to be averaged over
+K=10; 
+    
 % Destination folder
-d_folder = 'Matejka16_output\';
+d_folder = 'Matejka16_output/';
 
 % Benchmark grid points
 Nstates_bench = 200;
@@ -59,9 +62,6 @@ times_mat = zeros(N_llambda,2); % Running times
 obj_mat = times_mat; % Objective function
 flag_mat = times_mat; % Exitflags
 
-Db_vec = zeros(N_llambda,1); % Distance in vector b
-DIE_vec = Db_vec; % Distance in IE
-
 % Initial guess - Full information
 [~,FI_actions] = max(u_mat,[],2);
 FI_pjoint = zeros(Nstates,Nactions);
@@ -70,11 +70,13 @@ p_FI = FI_pjoint'*ppi;
 
 % Execute
 fprintf('Computing across information costs... \n')
-for i = 1:N_llambda
-    fprintf(['Step %i of ' num2str(N_llambda) '.\n'],i)
-    
+PI=randperm(N_llambda);
+for j = 1:N_llambda
+    i=PI(j);
+
     % PREP THIS ITERATION
     llambda = llambda_grid_bench(i);
+    fprintf(['Step %i of ' num2str(N_llambda) ', lambda = %g.\n'],j,llambda);
     % Matrix of b's
     b_mat = exp(u_mat/llambda);
     % Negative of the objective function
@@ -82,36 +84,7 @@ for i = 1:N_llambda
     % Ignorance equivalent
     IE = @(p) llambda*log(b_mat*p);
     
-    % SQP ALGORITHM
-    [p_marg,~,ttime,exitflag] = GAP_SQP(u_mat,ppi,llambda,...
-        'display','off',...
-        'conv_tol_IE',conv_tol_IE,...
-        'save_hist', false);
-    b = b_mat*p_marg;
-    
-    times_mat(i,1) = ttime;
-    p_marg = max(p_marg,0);
-    p_marg = p_marg/sum(p_marg);
-    obj_mat(i,1) = - neg_w(p_marg);
-    flag_mat(i,1) = exitflag;
-    
-    % ALTERNATIVE
-    [p_marg,hist,ttime,exitflag] = solve_BA(u_mat,ppi,llambda,...
-        'display','off',...
-        'stopping_rule','objective',...
-        'save_hist', false);
-    
-    flag_mat(i,2) = exitflag;
-    p_marg = max(p_marg,0);
-    p_marg = p_marg/sum(p_marg);
-    b_X = b_mat*p_marg;
-    times_mat(i,2) = ttime;
-    obj_mat(i,2) = -neg_w(p_marg);
-    
-    % METRIC DIFFERENCES
-    Db_vec(i) = (b-b_X)'*diag(ppi)*(b-b_X);
-    dIE = IE(p_marg)-IE(p_marg);
-    DIE_vec(i) = dIE'*diag(ppi)*dIE;
+    [times_mat(i,:),flag_mat(i,:),obj_mat(i,:)] = RI_timed_runs(u_mat,b_mat,ppi,llambda,conv_tol_IE,neg_w);
 end
 fprintf('Completed. \n')
 
@@ -124,17 +97,16 @@ times_mat = zeros(Ngrid,2);% Running times
 obj_mat = times_mat; % Objective function
 flag_mat = times_mat; % Exitflags
 
-Db_vec = zeros(Ngrid,1); % Distance in vector b
-DIE_vec = Db_vec; % Distance in IE
-
 fprintf('Computing across grid precision values... \n')
-for n=1:Ngrid
-    fprintf(['Step %i of ' num2str(Ngrid) '.\n'],n)
-    
+PI=randperm(Ngrid);
+for m=1:Ngrid
+    n=PI(m);
+    fprintf(['Step %i of ' num2str(Ngrid) ', grid size %i.\n'],m,n);
+
     % Assign precision parameters
     Nstates = gridpoints(n);
     Nactions = gridpoints(n);
-    
+
     % State grid
     stategrid = transpose(staterange(1):(staterange(2)-staterange(1))/(Nstates-1):staterange(2));
     % Prior (Uniform)
@@ -154,37 +126,8 @@ for n=1:Ngrid
     neg_w = @(p) -llambda*ppi'*log(b_mat*p);
     % Ignorance equivalent
     IE = @(p) llambda*log(b_mat*p);
-    
-    
-    % SQP ALGORITHM
-    [p_marg,~,ttime,exitflag] = GAP_SQP(u_mat,ppi,llambda,...
-        'display','off',...
-        'conv_tol_IE',conv_tol_IE,...
-        'save_hist', false);
-    b = b_mat*p_marg;
-    times_mat(n,1) = ttime;
-    p_marg = max(p_marg,0);
-    p_marg = p_marg/sum(p_marg);
-    obj_mat(n,1) = - neg_w(p_marg);
-    flag_mat(n,1) = exitflag;
-    
-    % BA ALGORITHM
-    [p_marg,~,ttime,exitflag] = solve_BA(u_mat,ppi,llambda,...
-        'display','off',...
-        'stopping_rule','objective',...
-        'save_hist', false);
-    flag_mat(n,2) = exitflag;
-    p_marg = max(p_marg,0);
-    p_marg = p_marg/sum(p_marg);
-    b_X = b_mat*p_marg;
-    times_mat(n,2) = ttime;
-    obj_mat(n,2) = -neg_w(p_marg);
-    flag_mat(n,2) = exitflag;
-    
-    % Differences
-    Db_vec(n) = (b-b_X)'*diag(ppi)*(b-b_X);
-    dIE = IE(p_marg)-IE(p_marg);
-    DIE_vec(n) = dIE'*diag(ppi)*dIE;
+
+    [times_mat(n,:),flag_mat(n,:),obj_mat(n,:)] = RI_timed_runs(u_mat,b_mat,ppi,llambda,conv_tol_IE,neg_w);
 end
 fprintf('Completed. \n')
 

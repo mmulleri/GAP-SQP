@@ -17,7 +17,7 @@ function [probsets] = GAP_bounds(b_mat,ppi,popt,plevels,varargin)
   %   - ps: a matrix where each column represents marginals over the action
   %     space (e.g. evalps provided by GAP_SQP)
   %   - zerotolerance: a small nonnegative scalar that lowers the threshold
-  %     for inclusion into the 1-cover
+  %     for inclusion into the 1-cover (making the cover larger)
   % As output, the function returns a binary indicator matrix where each
   % column corresponds to a set of actions with the desired probability bounds.
   %
@@ -50,7 +50,7 @@ function [probsets] = GAP_bounds(b_mat,ppi,popt,plevels,varargin)
   numzero = inputs.Results.zerotolerance;
   db=inputs.Results.seed;
 
-  if max(plevels)<0 %no perturbations are needed
+  if (min(plevels)>0 | max(plevels)<0) %no perturbations are needed
     db=0;
   end
 
@@ -148,12 +148,12 @@ function [probsets] = GAP_bounds(b_mat,ppi,popt,plevels,varargin)
       probsets(:,k) = (Z0<-numzero); % eliminate those with negative z-score
     else %plevel is positive: identify all actions with small enough z scores
       if verbose
-        fprintf('Looking for unlikely actions.\n');
+        fprintf('Looking for actions that jointly occur less than %f%%.\n',100*plevel);
       end
       psi0=ppi./(b_mat*popt);
       z=psi0'*b_mat-1;
-      Delta = max(z)
-      delta = Delta * (1-plevel)/plevel
+      Delta = max(z);
+      delta = Delta * (1-plevel)/plevel;
       probsets(:,k) = (z<-delta);
     end
   end

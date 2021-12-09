@@ -51,6 +51,7 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   addParameter(inputs,'conv_tol_IE',1e-12,validposn);
   addParameter(inputs,'MaxIterations',1e4,validposn);
   addParameter(inputs,'initial_p',[],@(x) isempty(x) || (isPMF(x) && size(x,1)==J));
+  addParameter(inputs,'zero_tol',1e-9,@(x) isnumeric(x) && isscalar(x) && x>=0); % algorithm will disregard actions with joint probability below threshold zero_tol
 
   % PARSE
   parse(inputs,u_mat,ppi,info_cost,varargin{:});
@@ -87,6 +88,8 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   % Initial guess
   marg = inputs.Results.initial_p;
 
+  % zero tolerance
+  zerotol = inputs.Results.zero_tol;
   %% Computational parameters
 
   linoptions = optimoptions('linprog',...
@@ -149,19 +152,35 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   tic
 
   %% Execute
-
   while stepsize > conv_tol_IE
     b_old=b;
 
     chat(print_i, 'Round %3i: ',i);
+    % compute z scores & disregard unlikely actions:
+    scores=(ppi./b)'*b_mat-1;
+    zmax=max(scores);
+    cand=(scores>= min(-(1-zerotol)/zerotol*zmax,-zerotol)); %added alternative threshold to include more actions, primarily for cases where numerical imprecision causes zmax<0.
+    j=sum(cand);
+
+
+
     % use second-order taylor approximation
     D = spdiags(ppi./(b.*b),0,length(ppi),length(ppi));
-    H = b_mat'*D*b_mat;
+    H = b_mat(:,cand)'*D*b_mat(:,cand);
+
     marg_old=marg;
-    [Dmarg,~,found_quad,~] = quadprog(...
-    (H+H')/2,(-2*(ppi./b)'*b_mat + marg_old'*(H+H')/2)',...
-    [],[],ones(1,J),0,...
-    zeros(J,1) - marg_old,ones(J,1)-marg_old,[],quadoptions);
+    marg_trimmed=marg(cand);
+
+    if (zerotol>0)
+        chat(print_d, 'Old marginals associate weight %e to %i actions now disregarded. ',sum(marg_old(~cand)),J-j);
+        chat(print_d, 'Max score is %e and effective cutoff is %e.\n',zmax,min(-(1-zerotol)/zerotol*zmax,-zerotol));
+        chat(print_d, 'Calling quadprog with a %i-dimensional problem.\n',j);
+    end
+
+    [Dmarg,~,found_quad,~] = quadprog((H+H')/2, ...
+        (-2*(ppi./b)'*b_mat(:,cand) + marg_trimmed'*(H+H')/2)',...
+        [],[],ones(1,j),0, zeros(j,1) - marg_trimmed,ones(j,1)-marg_trimmed, ...
+        [],quadoptions);
     chat(print_d,'Quadprog terminated with exitflag %i. \n',found_quad)
     if size(Dmarg,2)<1
       chat(print_i,'Quadratic approximation cannot improve objective function. Stopping. \n')
@@ -170,12 +189,13 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
       stepsize = -1;
       continue
     end
-    marg = Dmarg + marg_old;
+
+    marg(cand) = marg(cand) + Dmarg;
     Dw = -neg_w(marg) + neg_w(marg_old);
     slide_step = false;
     % Report diagnostics
     if Dw>=0
-      chat(print_d,'Quadprog has improved objective by %f. Continuing. \n',Dw)
+      chat(print_d,'Quadprog has improved objective by %e. Continuing. \n',Dw)
       slide_step = true;
     end
     found_quad = max(found_quad,0);
@@ -207,6 +227,12 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
       end
       i=i+1;
     end
+
+    if (print_d)
+        fprintf('\n');
+        GAP_printmarg(marg,'actionlabels',actionlbls);
+    end
+
   end
 
   % Scaling now
@@ -228,10 +254,13 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   ttime = toc;
 
   %% FINAL OUTPUT
+  % make sure marginals are a valid probability
+  p_marg = max(0,p_marg);
+  p_marg = p_marg/sum(p_marg);
 
   if (print_final)
     fprintf('\n');
-    RI_printmarg(p_marg,'actionlabels',actionlbls);
+    GAP_printmarg(p_marg,'actionlabels',actionlbls);
   end
 
   if nargout>4
