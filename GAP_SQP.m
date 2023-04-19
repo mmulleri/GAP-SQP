@@ -39,6 +39,7 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
 
   % Information cost
   validposn = @(x) isnumeric(x) && isscalar(x) && x>0;
+  validnnegn = @(x) isnumeric(x) && isscalar(x) && x>=0;
   addRequired(inputs,'info_cost',validposn);
 
   % Other input parameters
@@ -50,6 +51,8 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   % Computational
   addParameter(inputs,'conv_tol_IE',1e-12,validposn);
   addParameter(inputs,'MaxIterations',1e4,validposn);
+  addParameter(inputs,'MaxLinIt',1e4,validnnegn);
+  addParameter(inputs,'MaxQuadIt',200,validposn);
   addParameter(inputs,'initial_p',[],@(x) isempty(x) || (isPMF(x) && size(x,1)==J));
   addParameter(inputs,'zero_tol',1e-9,@(x) isnumeric(x) && isscalar(x) && x>=0); % algorithm will disregard actions with joint probability below threshold zero_tol
 
@@ -79,6 +82,7 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
 
   % maxit limits the number of iterations FOR OUR ALGORITHM
   maxit = inputs.Results.MaxIterations;
+  maxlinit = inputs.Results.MaxLinIt;
 
   % Print options
   print_i = any(strcmp({'iter','detailed'},inputs.Results.display));
@@ -95,14 +99,14 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   linoptions = optimoptions('linprog',...
   'Algorithm','dual-simplex',...
   'Display','off',...
-  'MaxIterations',10000,...
+  'MaxIterations',maxlinit,...
   'MaxTime',120,...
   'OptimalityTolerance',1e-10,...
   'ConstraintTolerance',1e-9);
 
   quadoptions = optimoptions('quadprog',...
   'Display','none',...
-  'MaxIterations',200,...
+  'MaxIterations',inputs.Results.MaxQuadIt,...
   'ConstraintTolerance',1e-9,...
   'OptimalityTolerance', 1e-10);
 
@@ -149,7 +153,7 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   i=1;
   stepsize=1;
   exitflag = 1;
-  tic
+  t0=tic;
 
   %% Execute
   while stepsize > conv_tol_IE
@@ -157,7 +161,7 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
 
     chat(print_i, 'Round %3i: ',i);
     % compute z scores & disregard unlikely actions:
-    scores=(ppi./b)'*b_mat-1;
+    scores=sum(ppi.*(b_mat./b),1)-1;
     zmax=max(scores);
     cand=(scores>= min(-(1-zerotol)/zerotol*zmax,-zerotol)); %added alternative threshold to include more actions, primarily for cases where numerical imprecision causes zmax<0.
     j=sum(cand);
@@ -180,7 +184,10 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
     [Dmarg,~,found_quad,~] = quadprog((H+H')/2, ...
         (-2*(ppi./b)'*b_mat(:,cand) + marg_trimmed'*(H+H')/2)',...
         [],[],ones(1,j),0, zeros(j,1) - marg_trimmed,ones(j,1)-marg_trimmed, ...
-        [],quadoptions);
+        zeros(j,1),quadoptions);
+    if found_quad<0 %abandon
+        Dmarg=zeros(j,0);
+    end
     chat(print_d,'Quadprog terminated with exitflag %i. \n',found_quad)
     if size(Dmarg,2)<1
       chat(print_i,'Quadratic approximation cannot improve objective function. Stopping. \n')
@@ -236,22 +243,26 @@ function [p_marg,hist,ttime,exitflag,info] = GAP_SQP(u_mat,ppi,info_cost,varargi
   end
 
   % Scaling now
-  constr1 = [-b_mat,b];
-  ff = [zeros(J,1);-1];
-  chat(print_d,'Scaling final estimate to the surface of B. \n');
-  [th,~,found_scale] = linprog(ff,constr1,...
-  zeros(I,1),[ones(1,J),0],1,[zeros(J,1);0],[ones(J,1);Inf],...
-  linoptions);
+  if maxlinit>0
+      constr1 = [-b_mat,b];
+      ff = [zeros(J,1);-1];
+      chat(print_d,'Scaling final estimate to the surface of B. \n');
+      [th,~,found_scale] = linprog(ff,constr1,...
+          zeros(I,1),[ones(1,J),0],1,[zeros(J,1);0],[ones(J,1);Inf],...
+          linoptions);
 
-  if found_scale==1
-    chat(print_d,'Scaling factor is 1+%6g. \n',th(end)-1);
-    p_marg = th(1:(end-1));
+      if found_scale==1
+          chat(print_d,'Scaling factor is 1+%6g. \n',th(end)-1);
+          p_marg = th(1:(end-1));
+      else
+          chat(print_d,'Scaling unsuccessful, maintaining quadprog marginals.');
+          p_marg = marg; %use last one
+      end
   else
-    chat(print_d,'Scaling unsuccessful, maintaining quadprog marginals.');
-    p_marg = marg; %use last one
+      p_marg = marg;
   end
 
-  ttime = toc;
+  ttime = toc(t0);
 
   %% FINAL OUTPUT
   % make sure marginals are a valid probability
